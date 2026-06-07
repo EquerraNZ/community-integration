@@ -1,0 +1,4 @@
+[submodule "ALCodeQuality"]
+	path = ALCodeQuality
+	url = https://github.com/EquerraNZ/ALCodeQuality.git
+	branch = main
