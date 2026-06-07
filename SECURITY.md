@@ -1,41 +1,23 @@
-<!-- BEGIN MICROSOFT SECURITY.MD V0.0.5 BLOCK -->
+# Security
 
-## Security
+## Reporting a vulnerability
 
-Microsoft takes the security of our software products and services seriously, which includes all source code repositories managed through our GitHub organizations, which include [Microsoft](https://github.com/Microsoft), [Azure](https://github.com/Azure), [DotNet](https://github.com/dotnet), [AspNet](https://github.com/aspnet), [Xamarin](https://github.com/xamarin), and [our GitHub organizations](https://opensource.microsoft.com/).
+Please do not report security vulnerabilities through public GitHub issues.
 
-If you believe you have found a security vulnerability in any Microsoft-owned repository that meets [Microsoft's definition of a security vulnerability](<https://docs.microsoft.com/en-us/previous-versions/tn-archive/cc751383(v=technet.10)>), please report it to us as described below.
+Instead, use GitHub's private vulnerability reporting on this repository (the "Report a vulnerability" button under the Security tab), or contact a repository maintainer directly.
 
-## Reporting Security Issues
+When reporting, please include as much of the following as you can:
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+- Type of issue (for example: injection, privilege escalation, data exposure).
+- Full paths of the source files related to the issue.
+- The location of the affected code (branch, commit, or direct URL).
+- Any special configuration required to reproduce the issue.
+- Step-by-step instructions to reproduce.
+- Proof-of-concept or exploit code, if available.
+- Impact of the issue, including how an attacker might exploit it.
 
-Instead, please report them to the Microsoft Security Response Center (MSRC) at [https://msrc.microsoft.com/create-report](https://msrc.microsoft.com/create-report).
+This information helps maintainers triage the report more quickly.
 
-If you prefer to submit without logging in, send email to [secure@microsoft.com](mailto:secure@microsoft.com). If possible, encrypt your message with our PGP key; please download it from the [Microsoft Security Response Center PGP Key page](https://www.microsoft.com/en-us/msrc/pgp-key-msrc).
+## Scope
 
-You should receive a response within 24 hours. If for some reason you do not, please follow up via email to ensure we received your original message. Additional information can be found at [microsoft.com/msrc](https://www.microsoft.com/msrc).
-
-Please include the requested information listed below (as much as you can provide) to help us better understand the nature and scope of the possible issue:
-
-- Type of issue (e.g. buffer overflow, SQL injection, cross-site scripting, etc.)
-- Full paths of source file(s) related to the manifestation of the issue
-- The location of the affected source code (tag/branch/commit or direct URL)
-- Any special configuration required to reproduce the issue
-- Step-by-step instructions to reproduce the issue
-- Proof-of-concept or exploit code (if possible)
-- Impact of the issue, including how an attacker might exploit the issue
-
-This information will help us triage your report more quickly.
-
-If you are reporting for a bug bounty, more complete reports can contribute to a higher bounty award. Please visit our [Microsoft Bug Bounty Program](https://microsoft.com/msrc/bounty) page for more details about our active programs.
-
-## Preferred Languages
-
-We prefer all communications to be in English.
-
-## Policy
-
-Microsoft follows the principle of [Coordinated Vulnerability Disclosure](https://www.microsoft.com/en-us/msrc/cvd).
-
-<!-- END MICROSOFT SECURITY.MD BLOCK -->
+This is a community-maintained repository. There is no commercial support or guaranteed response time. Maintainers will make a best effort to review and address reports.

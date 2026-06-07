@@ -1,10 +1,333 @@
 {
-    "folders":  [
-                    {
-                        "path":  ".AL-Go"
-                    }
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {},
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "AI: Run agent...",
+                "detail": "Pick an AL agent and run it against this repo",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "--agent",
+                    "${input:agentId}",
+                    "Audit this repository. The source folder is the current working directory unless I tell you otherwise."
                 ],
-    "settings":  {
-
-                 }
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: SDD: review the constitution",
+                "detail": "Spec-Driven Development step 0. Review specs/brief.md, tech-design.md, roadmap.md for completeness and consistency.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run the al-spec-init skill to review the project constitution (specs/brief.md, specs/tech-design.md, specs/roadmap.md) for completeness and consistency. Report findings and stop for my review."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: SDD: review a feature spec",
+                "detail": "Spec-Driven Development step 1. Review specs/features/<id>/spec.md against the constitution. No AL yet.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run the al-spec-feature skill to review the feature specification against the constitution and confirm the acceptance criteria are testable. Feature: ${input:sddFeature}. Report findings and stop for my review before planning."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: SDD: review a feature plan",
+                "detail": "Spec-Driven Development step 2. Review plan.md + tasks.md against the approved spec.md.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run the al-plan-feature skill to review plan.md and tasks.md against the approved spec. Feature: ${input:sddFeature}. Report findings and stop for my review before implementing."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: SDD: review the implementation",
+                "detail": "Spec-Driven Development step 3. Review the implementation against its spec, plan, and tasks, then run the verifier set and a BCQuality review.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run the al-implement-feature skill to review the feature implementation against its spec, plan, and tasks. Feature: ${input:sddFeature}. Then build, run the mandatory verifier set and a BCQuality review, resolve findings, and update docs and the roadmap."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: pre-completion",
+                "detail": "The mandatory parallel verifier set every BC task must clear before completion. See the mandatory verifier set in AGENTS.md.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in parallel against this repository, then synthesise the combined findings: al-code-quality-reviewer, al-readability-checker, al-test-coverage-validator, al-test-validator."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: pre-appsource",
+                "detail": "Run before submitting any version to AppSource. Four orthogonal audits that together cover the most common rejection reasons.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in parallel against this repository, then synthesise the combined findings: al-appsource-validator, al-translation-auditor, al-permission-set-auditor, al-obsolete-tracker."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: schema-change",
+                "detail": "Run when a table or enum has been added, renamed, type-narrowed, or restructured. Covers data migration, permission coverage, and translation of any new captions.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in parallel against this repository, then synthesise the combined findings: al-upgrade-checker, al-permission-set-auditor, al-translation-auditor."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: subscriber-change",
+                "detail": "Run when an EventSubscriber has been added, modified, or its targeted dependency has been bumped.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in parallel against this repository, then synthesise the combined findings: al-event-subscriber-auditor, al-code-quality-reviewer."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: hot-path-review",
+                "detail": "Run when a posting routine, batch job, or frequently rendered list page has been touched, or when a tenant reports slowness.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in parallel against this repository, then synthesise the combined findings: al-performance-reviewer, al-code-quality-reviewer."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: integration-review",
+                "detail": "Run when integration code changes: an inbound or outbound flow, a Business Event, a staging endpoint, a Job Queue sender, or any Azure integration artifact (Bicep, Logic App, Function, Service Bus, APIM). Validates the BC app build and the Azure component build against the modern integration patterns.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in parallel against this repository, then synthesise the combined findings: al-integration-pattern-reviewer, azure-integration-validator, al-event-subscriber-auditor."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: userguide-coverage-al",
+                "detail": "Generate AL TestPage codeunits from USER_GUIDE.md, run them in a container, validate coverage. The codeunit-level path; fast, runs in CI, no sandbox to babysit.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in sequence against this repository, then synthesise the combined findings: al-userguide-test-writer, al-test-runner, al-test-coverage-validator."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: userguide-coverage-webclient",
+                "detail": "Drive a real BC web client through USER_GUIDE.md via the Claude in Chrome MCP. Catches UI-layer issues TestPage cannot see (layout, action enable/disable, factbox refresh, notification toasts). Heavier than the AL path; run before releases or after a \"works in test, broken on screen\" report.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in parallel against this repository, then synthesise the combined findings: bc-webclient-runner."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "AI: Playlist: release-readiness",
+                "detail": "Run before bumping the extension's major version. Broad sweep across migration, permissions, translations, deprecation hygiene, multitenancy.",
+                "type": "shell",
+                "command": "claude",
+                "args": [
+                    "Run these agents in parallel against this repository, then synthesise the combined findings: al-upgrade-checker, al-permission-set-auditor, al-translation-auditor, al-obsolete-tracker, al-multitenancy-reviewer, al-appsource-validator, al-test-coverage-enforcer."
+                ],
+                "presentation": {
+                    "echo": true,
+                    "panel": "dedicated",
+                    "focus": true,
+                    "clear": true
+                },
+                "problemMatcher": []
+            }
+        ],
+        "inputs": [
+            {
+                "id": "sddFeature",
+                "type": "promptString",
+                "description": "Feature id/slug or short description (e.g. 001-equipment-loan)"
+            },
+            {
+                "id": "agentId",
+                "type": "pickString",
+                "description": "Which agent to run?",
+                "options": [
+                    {
+                        "label": "al-code-quality-reviewer",
+                        "value": "al-code-quality-reviewer"
+                    },
+                    {
+                        "label": "al-readability-checker",
+                        "value": "al-readability-checker"
+                    },
+                    {
+                        "label": "al-table-refactorer",
+                        "value": "al-table-refactorer"
+                    },
+                    {
+                        "label": "al-test-coverage-enforcer",
+                        "value": "al-test-coverage-enforcer"
+                    },
+                    {
+                        "label": "al-test-coverage-validator",
+                        "value": "al-test-coverage-validator"
+                    },
+                    {
+                        "label": "al-test-runner",
+                        "value": "al-test-runner"
+                    },
+                    {
+                        "label": "al-test-validator",
+                        "value": "al-test-validator"
+                    },
+                    {
+                        "label": "al-test-writer",
+                        "value": "al-test-writer"
+                    },
+                    {
+                        "label": "al-permission-set-auditor",
+                        "value": "al-permission-set-auditor"
+                    },
+                    {
+                        "label": "al-event-subscriber-auditor",
+                        "value": "al-event-subscriber-auditor"
+                    },
+                    {
+                        "label": "al-upgrade-checker",
+                        "value": "al-upgrade-checker"
+                    },
+                    {
+                        "label": "al-multitenancy-reviewer",
+                        "value": "al-multitenancy-reviewer"
+                    },
+                    {
+                        "label": "al-performance-reviewer",
+                        "value": "al-performance-reviewer"
+                    },
+                    {
+                        "label": "al-integration-pattern-reviewer",
+                        "value": "al-integration-pattern-reviewer"
+                    },
+                    {
+                        "label": "azure-integration-validator",
+                        "value": "azure-integration-validator"
+                    },
+                    {
+                        "label": "al-translation-auditor",
+                        "value": "al-translation-auditor"
+                    },
+                    {
+                        "label": "al-appsource-validator",
+                        "value": "al-appsource-validator"
+                    },
+                    {
+                        "label": "al-obsolete-tracker",
+                        "value": "al-obsolete-tracker"
+                    },
+                    {
+                        "label": "al-userguide-test-writer",
+                        "value": "al-userguide-test-writer"
+                    },
+                    {
+                        "label": "bc-webclient-runner",
+                        "value": "bc-webclient-runner"
+                    }
+                ]
+            }
+        ]
+    }
 }

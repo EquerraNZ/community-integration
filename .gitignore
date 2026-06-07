@@ -19,3 +19,15 @@ rad.json
 .snapshots/
 cache_*
 ~$*
+
+# Node build outputs and dependencies
+node_modules/
+dist/
+
+# Throwaway AL MCP JSON-RPC call payloads used by scripts/al-mcp-run.mjs
+scripts/al-calls-*.json
+
+# Local secrets and environment files (never commit)
+.azure/
+*.azure.env
+local.settings.json
