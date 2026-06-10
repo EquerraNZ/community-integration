@@ -3,8 +3,8 @@
   "name": "Integration Foundation",
   "publisher": "Equerra Limited",
   "version": "1.0.0.0",
-  "brief": "",
-  "description": "",
+  "brief": "A reusable framework for inbound and outbound integrations in Business Central.",
+  "description": "Integration Foundation gives Business Central one shared staging record (the Integration Message) and a set of proven integration patterns built on it: type-based dispatch, idempotent duplicate detection, out-of-band swappable error classification, delayed correlated replies, durable staged pipelines, and a first-class manual recovery experience. It is a framework only; consuming apps add a handler or a pipeline stage without editing the framework.",
   "privacyStatement": "",
   "EULA": "",
   "help": "",
@@ -12,17 +12,19 @@
   "logo": "",
   "dependencies": [],
   "screenshots": [],
-  "platform": "1.0.0.0",
-  "application": "22.0.0.0",
+  "platform": "26.0.0.0",
+  "application": "26.0.0.0",
   "idRanges": [
     {
       "from": 73298400,
       "to": 73298499
     }
   ],
+  "contextSensitiveHelpUrl": "",
   "features": [
     "NoImplicitWith"
   ],
+  "runtime": "15.0",
   "resourceExposurePolicy": {
     "allowDebugging": true,
     "allowDownloadingSource": false,

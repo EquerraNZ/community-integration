@@ -4,7 +4,9 @@
   "appSourceCopMandatoryAffixes": [
     "<affix>"
   ],
-  "appFolders": [],
+  "appFolders": [
+    "Integration Foundation"
+  ],
   "testFolders": [],
   "bcptTestFolders": []
 }
