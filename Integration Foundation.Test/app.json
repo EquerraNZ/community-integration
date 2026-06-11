@@ -1,0 +1,39 @@
+{
+  "id": "b1a7c0de-1234-4a5b-9c6d-000000000001",
+  "name": "Integration Foundation Test",
+  "publisher": "Equerra Limited",
+  "brief": "Test app for Integration Foundation.",
+  "description": "Automated AL tests for the Integration Foundation extension.",
+  "version": "1.0.0.0",
+  "dependencies": [
+    {
+      "id": "fefb14ed-f8f6-472a-ab56-e2707d1a6759",
+      "name": "Integration Foundation",
+      "publisher": "Equerra Limited",
+      "version": "1.0.0.0"
+    },
+    {
+      "id": "dd0be2ea-f733-4d65-bb34-a28f4624fb14",
+      "name": "Library Assert",
+      "publisher": "Microsoft",
+      "version": "1.0.0.0"
+    }
+  ],
+  "platform": "28.0.0.0",
+  "application": "28.0.0.0",
+  "runtime": "17.0",
+  "idRanges": [
+    {
+      "from": 73298470,
+      "to": 73298499
+    }
+  ],
+  "features": [
+    "NoImplicitWith"
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": false,
+    "includeSourceInSymbolFile": false
+  }
+}

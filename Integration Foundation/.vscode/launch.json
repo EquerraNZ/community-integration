@@ -6,7 +6,7 @@
             "request": "launch",
             "type": "al",
             "environmentType": "OnPrem",
-            "server": "http://http://eq-ap-bc28",
+            "server": "http://eq-ap-bc28",
             "serverInstance": "BC",
             "authentication": "UserPassword",
             "startupObjectId": 22,
