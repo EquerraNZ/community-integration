@@ -87,8 +87,8 @@ API, an ERP feed) plug into the same paths without changing the core.
 - **Reusable by design.** Adding a new integration must not require a new inbound API
   or new cross-cutting plumbing; the extension provides one inbound path and one
   outbound path that all integrations share.
-- **BC target.** BC SaaS, per-tenant extension, publisher "Equerra". Object ID range
-  `73298400`-`73298499` (`"from": 73298400, "to": 73298499`). Latest BC platform.
+- **BC target.** BC SaaS, per-tenant extension, publisher "Equerra Limited". Object ID
+  range `73298400`-`73298499` (`"from": 73298400, "to": 73298499`). Latest BC platform.
 - **Join key.** Items are matched between systems by SKU through a mapping maintained
   in BC. An unmapped SKU fails the item with a clear error rather than guessing.
 - **Secrets** live in secure storage, never in plain fields or in source.

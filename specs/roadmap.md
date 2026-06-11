@@ -16,15 +16,15 @@ pattern with a Webstore and a WMS as the first two modules.
 
 1. `001-core-messaging` Integration Message table, Type enum, interface,
    processing codeunit, API page, retry via Job Queue. The shared backbone
-   everything else builds on. Status: `todo`.
+   everything else builds on. Status: `planned`.
 
 2. `002-webstore-order-ingest` Webstore module: parse inbound order JSON, create
-   Sales Order, SKU-to-Item mapping, Webstore Setup, idempotency on order
-   number. Status: `todo`.
+   Sales Order, SKU-to-Item mapping, Webstore Setup page and table,
+   idempotency on order number. Status: `todo`.
 
 3. `003-fulfilment-request` WMS module outbound: subscribe to Sales Order
    release, raise `OnAfterFulfilmentRequested` business event with structured
-   payload, WMS Setup. Status: `todo`.
+   payload, WMS Setup page and table. Status: `todo`.
 
 4. `004-shipment-confirmation` WMS module inbound: parse shipment confirmation
    JSON, post Warehouse Shipment (partial or full), record carrier and tracking,
@@ -34,8 +34,10 @@ pattern with a Webstore and a WMS as the first two modules.
    shipment posted, raise `OnAfterShipmentPosted` business event with order
    number, BC order number, and despatch timestamp. Status: `todo`.
 
-6. `006-permissions-and-setup` Permission set covering all objects, setup pages
-   for Webstore and WMS modules, setup validation. Status: `todo`.
+6. `006-permissions-and-polish` Permission set covering all objects, setup
+   validation (required fields, test connection), telemetry instrumentation
+   review. Setup tables and pages are delivered with their module (002, 003);
+   this feature hardens them. Status: `todo`.
 
 ## Parked / later
 
