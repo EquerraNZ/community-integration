@@ -21,7 +21,7 @@ On failure (Status set to Failed with a non-empty error), classify the error int
 
 ## Anti Pattern
 
-A failure handler that sets Status to Failed with only a raw error string and no class, leaving an operator to read and triage every row by hand. The detection signal: an integration error path that writes `Error Message` but has no Error Class (or equivalent category) field and no classification step, so the resolution page shows one undifferentiated Failed bucket. The consequence is that retries that would self-heal get manual attention, genuine data fixes wait behind them, and a contract break that should page an engineer looks identical to a transient timeout. See `al-classify-integration-errors-for-resolution.bad.al`.
+A failure handler that sets Status to Failed with only raw error content and no class, leaving an operator to read and triage every row by hand. The detection signal: an integration error path that writes to `Error Content` but has no Error Class (or equivalent category) field and no classification step, so the resolution page shows one undifferentiated Failed bucket. The consequence is that retries that would self-heal get manual attention, genuine data fixes wait behind them, and a contract break that should page an engineer looks identical to a transient timeout. See `al-classify-integration-errors-for-resolution.bad.al`.
 
 ## See also
 

@@ -19,15 +19,14 @@ codeunit 50110 "Post Shipment Notifier"
 
         IntegrationMessage.Init();
         IntegrationMessage."Message ID" := CreateGuid();
-        // Direction Outbound + Status New is exactly what the Job Queue processor queries for.
-        IntegrationMessage.Direction := IntegrationMessage.Direction::Outbound;
         IntegrationMessage.Status := IntegrationMessage.Status::New;
-        IntegrationMessage.Type := 'SHIPMENT-NOTIFY';
+        IntegrationMessage.Type := "Integration Message Type"::"Shipment Notify";
         // Carry the document ANCHOR, not a live handle. The processor re-reads detail later.
         IntegrationMessage."Document No." := SalesHeader."No.";
-        IntegrationMessage."External Reference" := SalesHeader."External Document No.";
+        // Idempotency Key ensures a retry of this notification is deduplicated.
+        IntegrationMessage."Idempotency Key" := SalesHeader."No.";
         // Correlation id threads this notification to the rest of the flow's log lines.
-        IntegrationMessage."Correlation ID" := CopyStr(DelChr(LowerCase(Format(CreateGuid())), '=', '{}'), 1, 40);
+        IntegrationMessage."Correlation ID" := CreateGuid();
         // Insert participates in the posting transaction: the row lives only if the post commits,
         // and rolls back cleanly with the post if posting fails. No remote system is touched here.
         IntegrationMessage.Insert(true);
@@ -42,8 +41,8 @@ codeunit 50111 "Outbound Sender"
     var
         IntegrationMessage: Record "Integration Message";
     begin
-        IntegrationMessage.SetRange(Direction, IntegrationMessage.Direction::Outbound);
         IntegrationMessage.SetRange(Status, IntegrationMessage.Status::New);
+        IntegrationMessage.SetRange(Type, "Integration Message Type"::"Shipment Notify");
         if IntegrationMessage.FindSet() then
             repeat
                 // Each row is its own short unit of work. A slow endpoint stalls delivery
@@ -60,13 +59,15 @@ codeunit 50111 "Outbound Sender"
     begin
         Content.WriteFrom(BuildShipmentJson(IntegrationMessage));
         if Client.Post(GetEndpoint(IntegrationMessage), Content, Response) and Response.IsSuccessStatusCode() then begin
-            IntegrationMessage.Status := IntegrationMessage.Status::Resolved;
+            IntegrationMessage.Status := IntegrationMessage.Status::Completed;
+            IntegrationMessage.SetResponseContent(Response);
             IntegrationMessage.Modify(true);
         end else begin
             // A failure here is recorded on the row and retried later. The posted shipment
             // is already durable, so a WMS outage never costs us the posting.
-            IntegrationMessage."Retry Count" += 1;
-            IntegrationMessage."Error Message" := CopyStr(GetLastErrorText(), 1, 2048);
+            IntegrationMessage.Status := IntegrationMessage.Status::Failed;
+            IntegrationMessage."Error Code" := 'HTTP-SEND';
+            IntegrationMessage.SetErrorContent(GetLastErrorText());
             IntegrationMessage.Modify(true);
         end;
     end;

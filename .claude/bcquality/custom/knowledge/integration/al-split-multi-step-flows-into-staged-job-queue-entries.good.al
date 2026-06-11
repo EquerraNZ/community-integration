@@ -1,11 +1,12 @@
 // Best practice: each stage is its own Job Queue entry implementing IIntegrationStage,
 // dispatched from an extensible enum. Status is the cursor that records the flow's position.
 // Stages share no state across runs, so each has its own short lock window and its own retry.
+// Parent Message ID links child stages back to the root message for end-to-end tracing.
 
 interface IIntegrationStage
 {
     procedure Run(var IntegrationMessage: Record "Integration Message");
-    procedure NextStatus(): Enum "Integration Status";
+    procedure NextStatus(): Enum "Integration Message Status";
 }
 
 // Extensible: adding a stage is ONE new codeunit plus ONE enum value, with no orchestrator change.
@@ -30,11 +31,11 @@ codeunit 50211 "Stage Transform" implements IIntegrationStage
         // Only this stage's work is in scope, so its lock window is short and it commits on its own.
     end;
 
-    procedure NextStatus(): Enum "Integration Status"
+    procedure NextStatus(): Enum "Integration Message Status"
     begin
         // Advances the cursor to the next stage. A failure here rolls back ONLY this stage;
         // Fetch stays committed and the flow resumes from Transform, not from the start.
-        exit("Integration Status"::Post);
+        exit("Integration Message Status"::"In Progress");
     end;
 }
 
@@ -44,6 +45,7 @@ codeunit 50212 "Stage Dispatcher"
 
     // Each invocation runs ONE stage as its own Job Queue entry, advances Status, then the next
     // stage runs as a separate entry. No step holds a lock across another step's work.
+    // Parent Message ID is set on child messages so the entire pipeline is traceable.
     procedure RunStage(var IntegrationMessage: Record "Integration Message"; Stage: Enum "Integration Stage")
     var
         StageImpl: Interface IIntegrationStage;

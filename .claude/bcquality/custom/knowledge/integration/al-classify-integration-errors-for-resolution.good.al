@@ -21,6 +21,7 @@ codeunit 50140 "Classify Integration Error"
     var
         AIClassifier: Codeunit "AI Classifier Wrapper";
         Class: Enum "Integration Error Class";
+        ErrorText: Text;
     begin
         // 1) Fast path: deterministic rules over codes we already recognise.
         Class := ClassifyByKnownCodes(IntegrationMessage."Error Code");
@@ -28,8 +29,10 @@ codeunit 50140 "Classify Integration Error"
         // 2) Fall back to the AI classifier for the free-text messages rules miss.
         //    The wrapper calls the model through the System.AI module, so the call
         //    is governed and billed, not a raw HttpClient to a model endpoint.
-        if Class = Class::Unclassified then
-            Class := AIClassifier.Classify(IntegrationMessage."Error Message", IntegrationMessage.Type);
+        if Class = Class::Unclassified then begin
+            ErrorText := IntegrationMessage.GetErrorContent();
+            Class := AIClassifier.Classify(ErrorText, IntegrationMessage.Type);
+        end;
 
         // 3) Store the class so the resolution page can route on it. Advisory only:
         //    a human still confirms a data fix, the retry job still owns transient.

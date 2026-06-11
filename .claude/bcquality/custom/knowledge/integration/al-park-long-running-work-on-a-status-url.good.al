@@ -1,6 +1,6 @@
-// Best practice: on 202 Accepted, PARK the message as Awaiting Reply with the status URL on
-// the row, then let a scheduled poll resume it. Retry count and last error live on the MESSAGE,
-// so a resume after a restart still knows how often it has tried and why it last failed.
+// Best practice: on 202 Accepted, PARK the message as In Progress with the status URL on
+// the row, then let a scheduled poll resume it. Error state lives on the MESSAGE,
+// so a resume after a restart still knows why it last failed.
 
 codeunit 50200 "Long Running Start"
 {
@@ -20,7 +20,7 @@ codeunit 50200 "Long Running Start"
             // Store the status URL on the row and park it. The flow now lives in the database,
             // not in this session, so it survives the session ending.
             IntegrationMessage."Status URL" := CopyStr(Location[1], 1, 250);
-            IntegrationMessage.Status := IntegrationMessage.Status::"Awaiting Reply";
+            IntegrationMessage.Status := IntegrationMessage.Status::"In Progress";
             IntegrationMessage.Modify(true);
         end;
 
@@ -42,16 +42,16 @@ codeunit 50201 "Long Running Resume"
         Client: HttpClient;
         Response: HttpResponseMessage;
     begin
-        IntegrationMessage.SetRange(Status, IntegrationMessage.Status::"Awaiting Reply");
+        IntegrationMessage.SetRange(Status, IntegrationMessage.Status::"In Progress");
         if IntegrationMessage.FindSet() then
             repeat
                 if Client.Get(IntegrationMessage."Status URL", Response) and IsComplete(Response) then
                     Complete(IntegrationMessage)
                 else begin
-                    // Retry/last-error state lives ON THE MESSAGE, not in a variable. A resume in
-                    // a different session after a restart still sees the true attempt count.
-                    IntegrationMessage."Retry Count" += 1;
-                    IntegrationMessage."Error Message" := CopyStr(LastError(Response), 1, 2048);
+                    // Error state lives ON THE MESSAGE, not in a variable. A resume in
+                    // a different session after a restart still sees the true failure context.
+                    IntegrationMessage."Error Code" := 'POLL-RETRY';
+                    IntegrationMessage.SetErrorContent(LastError(Response));
                     IntegrationMessage.Modify(true);
                 end;
             until IntegrationMessage.Next() = 0;

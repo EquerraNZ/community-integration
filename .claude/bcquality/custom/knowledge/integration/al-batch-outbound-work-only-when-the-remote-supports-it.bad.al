@@ -38,7 +38,7 @@ codeunit 50150 "WMS Sender (bad)"
         foreach Id in Items do begin
             IntegrationMessage.Get(Id);
             if Response.IsSuccessStatusCode() then
-                IntegrationMessage.Status := IntegrationMessage.Status::Resolved
+                IntegrationMessage.Status := IntegrationMessage.Status::Completed
             else
                 IntegrationMessage.Status := IntegrationMessage.Status::Failed;
             IntegrationMessage.Modify(true);

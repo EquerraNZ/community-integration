@@ -18,7 +18,7 @@ codeunit 50192 "Outbound Step Bad"
         LocalTrace := CreateGuid();
 
         // This trace value appears in no other component's logs, so it joins to nothing.
-        LogStep('sending', Format(LocalTrace));
+        LogStep('sending', LocalTrace);
 
         Request.SetRequestUri('https://svc.contoso.com/api/orders');
         Request.Method := 'POST';

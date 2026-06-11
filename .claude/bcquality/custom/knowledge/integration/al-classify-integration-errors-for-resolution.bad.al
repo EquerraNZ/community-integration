@@ -9,10 +9,10 @@ codeunit 50140 "Handle Integration Failure"
     procedure OnFailure(var IntegrationMessage: Record "Integration Message"; ErrorText: Text)
     begin
         IntegrationMessage.Status := IntegrationMessage.Status::Failed;
-        // BAD: raw text, no classification. Nothing tells ops whether to fix
-        // data, wait for the retry, or escalate. The resolution page shows one
+        // BAD: raw text into Error Content, no Error Code classification. Nothing tells ops
+        // whether to fix data, wait for the retry, or escalate. The resolution page shows one
         // undifferentiated Failed bucket and time-to-resolve grows with the queue.
-        IntegrationMessage."Error Message" := CopyStr(ErrorText, 1, MaxStrLen(IntegrationMessage."Error Message"));
+        IntegrationMessage.SetErrorContent(ErrorText);
         IntegrationMessage.Modify(true);
 
         // BAD: a blanket retry of every Failed row, because the code cannot tell

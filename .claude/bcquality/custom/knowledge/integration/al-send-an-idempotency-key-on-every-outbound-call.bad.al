@@ -15,7 +15,7 @@ codeunit 50151 "Outbound Caller Bad"
         Attempt: Integer;
     begin
         for Attempt := 1 to 3 do begin
-            Content.WriteFrom(IntegrationMessage.GetRequest());
+            Content.WriteFrom(IntegrationMessage.GetRequestContent());
             Request.Content := Content;
             Request.Method := 'POST';
             Request.SetRequestUri('https://pay.contoso.com/api/charges');

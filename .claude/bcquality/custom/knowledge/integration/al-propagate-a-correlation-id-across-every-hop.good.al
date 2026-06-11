@@ -13,17 +13,12 @@ codeunit 50190 "Inbound Entry"
         IntegrationMessage.Init();
         IntegrationMessage."Message ID" := CreateGuid();
         // Generated once, here, at the entry point. This is the trace id for the whole flow.
-        IntegrationMessage."Correlation ID" := NewCorrelationId();
-        IntegrationMessage.SetRequest(Payload);
+        IntegrationMessage."Correlation ID" := CreateGuid();
+        IntegrationMessage.SetRequestContent(Payload);
         IntegrationMessage.Insert(true);
 
         // Log it on the very first step, so even the inbound receipt is part of the trace.
         LogStep('received', IntegrationMessage."Correlation ID");
-    end;
-
-    local procedure NewCorrelationId(): Code[40]
-    begin
-        exit(CopyStr(DelChr(LowerCase(Format(CreateGuid())), '=', '{}'), 1, 40));
     end;
 }
 
@@ -44,7 +39,7 @@ codeunit 50191 "Outbound Step"
 
         // Carry the SAME id onto the outbound call as a header. The receiver logs it too, so the
         // external system's logs can be joined back to the BC side by this one value.
-        Headers.Add('Correlation-Id', IntegrationMessage."Correlation ID");
+        Headers.Add('Correlation-Id', Format(IntegrationMessage."Correlation ID", 0, 4));
 
         Client.Send(Request, Response);
         // Same id logged on this hop. Request and confirmation rows share it, so a status query

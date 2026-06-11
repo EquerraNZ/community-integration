@@ -7,19 +7,18 @@ codeunit 50120 "Inbound Intake"
 {
     // Called from the API insert trigger / webhook receiver. It returns the URL the HTTP
     // layer puts in the Location header alongside a 202 Accepted.
-    procedure Accept(Payload: Text; ExternalRef: Text[100]) StatusUrl: Text
+    procedure Accept(Payload: Text; IdempotencyKey: Text[50]) StatusUrl: Text
     var
         IntegrationMessage: Record "Integration Message";
     begin
         IntegrationMessage.Init();
         IntegrationMessage."Message ID" := CreateGuid();
-        IntegrationMessage.Direction := IntegrationMessage.Direction::Inbound;
-        IntegrationMessage."External Reference" := ExternalRef;
+        IntegrationMessage."Idempotency Key" := IdempotencyKey;
         // New means "accepted, not yet processed". The background processor picks it up;
-        // the caller sees it move to In Progress, then Resolved or Failed.
+        // the caller sees it move to In Progress, then Completed or Failed.
         IntegrationMessage.Status := IntegrationMessage.Status::New;
-        IntegrationMessage."Correlation ID" := CopyStr(DelChr(LowerCase(Format(CreateGuid())), '=', '{}'), 1, 40);
-        IntegrationMessage.SetRequest(Payload);
+        IntegrationMessage."Correlation ID" := CreateGuid();
+        IntegrationMessage.SetRequestContent(Payload);
         // The ONLY expensive thing on the request path is this Insert. The moment it
         // returns, the request thread is free to serve the next caller.
         IntegrationMessage.Insert(true);
@@ -50,9 +49,9 @@ page 50121 "Integration Message Status"
             repeater(Group)
             {
                 field(id; Rec."Message ID") { }
-                // The field the caller polls. New -> In Progress -> Resolved / Failed.
+                // The field the caller polls. New -> In Progress -> Completed / Failed.
                 field(status; Rec.Status) { }
-                field(errorMessage; Rec."Error Message") { } // populated only on Failed
+                field(errorCode; Rec."Error Code") { } // populated only on Failed
             }
         }
     }
@@ -68,7 +67,6 @@ codeunit 50122 "Inbound Processor"
     var
         IntegrationMessage: Record "Integration Message";
     begin
-        IntegrationMessage.SetRange(Direction, IntegrationMessage.Direction::Inbound);
         IntegrationMessage.SetRange(Status, IntegrationMessage.Status::New);
         if IntegrationMessage.FindSet() then
             repeat
@@ -81,7 +79,7 @@ codeunit 50122 "Inbound Processor"
 
     local procedure Process(var IntegrationMessage: Record "Integration Message")
     begin
-        // ... do the real work; on success set Status::Resolved and store the response,
-        // on failure set Status::Failed and stamp Error Message. The caller's next poll sees it.
+        // ... do the real work; on success set Status::Completed and store the response content,
+        // on failure set Status::Failed and stamp Error Code + Error Content. The caller's next poll sees it.
     end;
 }

@@ -3,7 +3,7 @@
 // and never calls the source system back. The Job Queue codeunit does the real
 // work later, decoupled from the caller and from the remote system's uptime.
 
-// --- The spine: one staging table for every inbound and outbound message ---
+// --- The spine: one staging table for every integration message ---
 table 50100 "Integration Message"
 {
     DataClassification = CustomerContent;
@@ -11,28 +11,32 @@ table 50100 "Integration Message"
     fields
     {
         field(1; "Message ID"; Guid) { Caption = 'Message ID'; }
-        field(2; Direction; Enum "Integration Direction") { Caption = 'Direction'; }
-        // Type drives the dispatcher below. A new message kind is a new branch,
-        // not a new published API page.
-        field(3; "Type"; Code[40]) { Caption = 'Type'; }
-        field(4; Status; Enum "Integration Status") { Caption = 'Status'; }
-        // The source system's stable id. Drives inbound de-duplication, so it
-        // carries a unique key, never the internal Message ID.
-        field(5; "External Reference"; Text[100]) { Caption = 'External Reference'; }
-        field(6; "Correlation ID"; Code[40]) { Caption = 'Correlation ID'; }
-        field(10; Request; Blob) { Caption = 'Request'; }
-        field(11; Response; Blob) { Caption = 'Response'; }
-        field(20; "Error Message"; Text[2048]) { Caption = 'Error Message'; }
-        field(21; "Retry Count"; Integer) { Caption = 'Retry Count'; }
+        field(2; "Document No."; Text[50]) { Caption = 'Document No.'; }
+        // Type drives the dispatcher below. A new message kind is a new enum value
+        // implementing IIntegrationMessageHandler, not a new published API page.
+        field(3; "Type"; Enum "Integration Message Type") { Caption = 'Type'; }
+        field(4; Status; Enum "Integration Message Status") { Caption = 'Status'; }
+        field(5; "Request Content"; Blob) { Caption = 'Request Content'; }
+        field(6; "Response Content"; Blob) { Caption = 'Response Content'; }
+        // The stable dedup key. A replayed request carries the same Idempotency Key,
+        // so the unique index rejects the duplicate at the database level.
+        field(7; "Idempotency Key"; Text[50]) { Caption = 'Idempotency Key'; }
+        field(8; "Error Content"; Blob) { Caption = 'Error Content'; }
+        field(9; "Error Code"; Code[20]) { Caption = 'Error Code'; }
+        // Trace ID across BC and external systems. Minted once at the entry point,
+        // carried unchanged on every staged message and outbound call.
+        field(10; "Correlation ID"; Guid) { Caption = 'Correlation ID'; }
+        // Span parent for staged pipelines: links child stages back to the root message.
+        field(11; "Parent Message ID"; Guid) { Caption = 'Parent Message ID'; }
     }
 
     keys
     {
         key(PK; "Message ID") { Clustered = true; }
-        // The work key the Job Queue queries: which rows still need processing.
-        key(Work; Status, Direction) { }
-        // The idempotency key: detect a replayed inbound message at insert time.
-        key(Idempotency; "External Reference", "Type") { }
+        key(DocumentNo; "Document No.") { }
+        // The idempotency key: detect a replayed message at insert time.
+        key(Idempotency; "Idempotency Key") { Unique = true; }
+        key(CorrelationID; "Correlation ID") { }
     }
 }
 
@@ -54,9 +58,10 @@ page 50100 "Integration Message API"
         {
             repeater(Group)
             {
-                field(externalReference; Rec."External Reference") { }
+                field(idempotencyKey; Rec."Idempotency Key") { }
                 field(type; Rec.Type) { }
-                field(request; Rec.Request) { }
+                field(documentNo; Rec."Document No.") { }
+                field(requestContent; Rec."Request Content") { }
             }
         }
     }
@@ -66,7 +71,7 @@ page 50100 "Integration Message API"
         // The only work the endpoint does: stamp identity and mark the row New.
         // Everything expensive happens later, in the Job Queue processor.
         Rec."Message ID" := CreateGuid();
-        Rec.Direction := Rec.Direction::Inbound;
+        Rec."Correlation ID" := CreateGuid();
         Rec.Status := Rec.Status::New;
     end;
 }
@@ -80,8 +85,7 @@ codeunit 50101 "Inbound Message Processor"
     var
         IntegrationMessage: Record "Integration Message";
     begin
-        // Read by Status, never from an HTTP call. The caller is long gone.
-        IntegrationMessage.SetRange(Direction, IntegrationMessage.Direction::Inbound);
+        // Read by Status. The caller is long gone.
         IntegrationMessage.SetRange(Status, IntegrationMessage.Status::New);
         if IntegrationMessage.FindSet() then
             repeat
@@ -89,11 +93,11 @@ codeunit 50101 "Inbound Message Processor"
             until IntegrationMessage.Next() = 0;
     end;
 
-    // The Type field routes to the right handler. No giant CASE in the endpoint.
+    // The Type enum routes to the right handler via its interface implementation.
     local procedure Dispatch(var IntegrationMessage: Record "Integration Message")
     begin
         // ... resolve a handler by IntegrationMessage.Type and run it; on
-        // success set Status::Resolved, on failure stamp Error Message and
-        // bump Retry Count so the row stays auditable and re-runnable.
+        // success set Status::Completed, on failure stamp Error Content and
+        // Error Code so the row stays auditable and re-runnable.
     end;
 }

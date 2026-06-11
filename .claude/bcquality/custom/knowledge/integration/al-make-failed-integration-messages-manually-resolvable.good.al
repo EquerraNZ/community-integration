@@ -19,15 +19,15 @@ page 50220 "Integration Resolution"
             repeater(Group)
             {
                 // The id is shown but NOT editable: re-running must reuse it so the idempotency
-                // key (derived from this id) stays the same and the retry cannot double-apply.
+                // key stays the same and the retry cannot double-apply.
                 field("Message ID"; Rec."Message ID") { Editable = false; }
-                field("External Reference"; Rec."External Reference") { Editable = false; }
+                field("Idempotency Key"; Rec."Idempotency Key") { Editable = false; }
+                field("Document No."; Rec."Document No.") { Editable = false; }
                 // The error context ops needs to diagnose the failure. Read-only: it is history.
-                field("Error Message"; Rec."Error Message") { Editable = false; }
-                field("Retry Count"; Rec."Retry Count") { Editable = false; }
+                field("Error Code"; Rec."Error Code") { Editable = false; }
+                field("Error Content"; Rec.GetErrorContent()) { Editable = false; }
                 // The payload ops actually edits to fix a malformed or mis-mapped message.
-                field(Request; Rec.GetRequest()) { }
-                field("Resolution Note"; Rec."Resolution Note") { } // audit of what was decided
+                field(RequestContent; Rec.GetRequestContent()) { }
             }
         }
     }
@@ -55,18 +55,7 @@ page 50220 "Integration Resolution"
                 begin
                     // Accept as handled with NO retry (for example the work was completed manually
                     // out of band). The audit record is kept so the decision is traceable.
-                    Rec.Status := Rec.Status::Resolved;
-                    Rec."Resolution Note" := 'Confirmed by exception';
-                    Rec.Modify(true);
-                end;
-            }
-            action(Reassign)
-            {
-                Caption = 'Reassign';
-                trigger OnAction()
-                begin
-                    // Route to another handler/queue without losing the message or its history.
-                    Rec."Assigned To" := PickHandler();
+                    Rec.Status := Rec.Status::Completed;
                     Rec.Modify(true);
                 end;
             }
