@@ -1,0 +1,39 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Integration Foundation Tests",
+  "publisher": "Equerra Limited",
+  "version": "1.0.0.0",
+  "brief": "Tests for the Integration Foundation extension.",
+  "description": "Test codeunits covering the core messaging backbone.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+    {
+      "id": "fefb14ed-f8f6-472a-ab56-e2707d1a6759",
+      "name": "Integration Foundation",
+      "publisher": "Equerra Limited",
+      "version": "1.0.0.0"
+    }
+  ],
+  "screenshots": [],
+  "platform": "1.0.0.0",
+  "application": "22.0.0.0",
+  "idRanges": [
+    {
+      "from": 73298490,
+      "to": 73298499
+    }
+  ],
+  "features": [
+    "NoImplicitWith"
+  ],
+  "target": "OnPrem",
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": false,
+    "includeSourceInSymbolFile": false
+  }
+}
