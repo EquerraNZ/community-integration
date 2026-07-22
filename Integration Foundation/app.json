@@ -3,8 +3,8 @@
   "name": "Integration Foundation",
   "publisher": "Equerra Limited",
   "version": "1.0.0.0",
-  "brief": "",
-  "description": "",
+  "brief": "Reusable Business Central integration foundation: one inbound path, one outbound path.",
+  "description": "A reusable integration extension for Business Central. Every integration shares a single inbound API path and a single outbound business-event path, with idempotency, correlation, retry, error classification, and manual resolution built in once and reused by every integration. Ships with the Webstore and WMS integrations as the first two modules.",
   "privacyStatement": "",
   "EULA": "",
   "help": "",
@@ -12,8 +12,9 @@
   "logo": "",
   "dependencies": [],
   "screenshots": [],
-  "platform": "1.0.0.0",
-  "application": "22.0.0.0",
+  "platform": "27.0.0.0",
+  "application": "27.0.0.0",
+  "runtime": "17.0",
   "idRanges": [
     {
       "from": 73298400,

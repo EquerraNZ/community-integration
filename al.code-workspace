@@ -1,10 +1,14 @@
 {
   "folders": [
     {
-      "path": "."
-    },
-    {
-      "path": "Integration Foundation"
+      {
+            "name": "Integration Foundation",
+            "path": "Integration Foundation"
+        },
+		{
+            "name": "Integration Foundation.Test",
+            "path": "Integration Foundation.Test"
+        }
     }
   ],
   "settings": {},
