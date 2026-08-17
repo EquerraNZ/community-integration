@@ -2,12 +2,6 @@
   "folders": [
     {
       "path": "."
-    },
-    {
-      "path": "Integration Foundation"
-    },
-    {
-      "path": "Integration Foundation.Test"
     }
   ],
   "settings": {},
