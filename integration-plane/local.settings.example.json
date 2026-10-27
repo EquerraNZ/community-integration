@@ -1,0 +1,25 @@
+{
+  "_comment": "Copy to local.settings.json and fill in. local.settings.json is git-ignored and must never be committed. In Azure these are app settings, and every value marked KEYVAULT below is a Key Vault reference, not a literal.",
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+
+    "SERVICEBUS__fullyQualifiedNamespace": "sb-intplane-dev-aue.servicebus.windows.net",
+
+    "BC_BASE_URL": "https://api.businesscentral.dynamics.com/v2.0/<tenant>/<environment>/api/equerra/integrationFoundation/v1.0",
+    "BC_COMPANY_ID": "<company guid>",
+    "BC_TOKEN_SCOPE": "https://api.businesscentral.dynamics.com/.default",
+    "BC_EVENT_ENDPOINT_URL": "https://func-intplane-dev-aue.azurewebsites.net/api/bc/events",
+
+    "WEBSTORE_BASE_URL": "https://swa-harbour-demo.azurestaticapps.net",
+    "WEBSTORE_INGEST_KEY": "KEYVAULT: @Microsoft.KeyVault(SecretUri=https://kv-intplane-dev-aue.vault.azure.net/secrets/webstore-ingest-key/)",
+    "WEBSTORE_STATUS_KEY": "KEYVAULT: @Microsoft.KeyVault(SecretUri=https://kv-intplane-dev-aue.vault.azure.net/secrets/webstore-status-key/)",
+
+    "WMS_BASE_URL": "https://wms.example.com",
+    "WMS_API_KEY": "KEYVAULT: @Microsoft.KeyVault(SecretUri=https://kv-intplane-dev-aue.vault.azure.net/secrets/wms-api-key/)",
+    "WMS_CALLBACK_KEY": "KEYVAULT: @Microsoft.KeyVault(SecretUri=https://kv-intplane-dev-aue.vault.azure.net/secrets/wms-callback-key/)",
+
+    "SUBSCRIPTION_HEALTH_SCHEDULE": "0 0 */6 * * *"
+  }
+}

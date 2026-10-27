@@ -1,11 +1,28 @@
-# Project Brief: Business Central Integration Extension
+# Project Brief: Business Central Integration Extension and Azure Integration Layer
 
-> A self-contained brief for one Business Central extension. It states what the
-> extension does and why, and it carries the endpoint and payload detail for the
-> already-built external systems it integrates with (a Webstore and a WMS), since
-> those are fixed inputs to the build. It does not describe the extension's internal
-> design (data model, objects, events); that is worked out in the technical design.
-> It references no other file, so it can be copied into any repository.
+> A self-contained brief for one integration solution built in two parts: a Business
+> Central extension, and the Azure integration layer that sits beside it. It states
+> what each part does and why, and it carries the endpoint and payload detail for the
+> already-built external systems they integrate with (a Webstore and a WMS), since
+> those are fixed inputs to the build. It does not describe either part's internal
+> design (data model, objects, events, Azure resource topology); that is worked out in
+> the technical design. It references no other file, so it can be copied into any
+> repository.
+
+## What we are building
+
+Two parts, built together, that between them carry every message across the boundary:
+
+- **The Business Central extension.** One inbound path and one outbound path for every
+  integration, current and future, with idempotency, correlation, retry state, error
+  classification, and manual resolution built in once.
+- **The Azure integration layer.** The plane outside BC that terminates every external
+  connection, holds every external credential, makes every outbound HTTP call, and
+  absorbs retry, dead-lettering, and third-party schema change.
+
+The split is the point, not an implementation detail. It is what keeps external
+credentials out of BC, keeps BC posting independent of whether a third party is up,
+and lets a vendor change their API without a BC release.
 
 ## What the extension is
 
@@ -23,6 +40,23 @@ on the Webstore become Sales Orders in BC; releasing an order asks the WMS to sh
 the WMS shipment confirmation posts the shipment in BC; and the Webstore is told when
 the order has shipped. Future integrations (a finance portal, a marketplace, a carrier
 API, an ERP feed) plug into the same paths without changing the core.
+
+## What the integration layer is
+
+The Azure side of the same solution, and the only thing that talks to the outside
+world. It terminates the Webstore and WMS connections, stages every inbound message
+into BC through the extension's single inbound endpoint, subscribes to the extension's
+outbound business events, and makes the resulting calls to the Webstore and the WMS.
+
+It is built to be as reusable as the extension it serves. Adding a new integration is
+adding a receiver and a sender on the same queues, the same correlation handling, the
+same retry and dead-letter policy, and the same secret store. Nothing in the plane is
+specific to coffee, to the Webstore, or to this WMS except the two adapters that map
+their payloads.
+
+It is deliberately thin. It does no business logic, it holds no business state, and it
+never decides whether something is valid: it moves messages, guarantees delivery, and
+keeps the credentials. Every business decision belongs in BC.
 
 ## Customer / context (example scenario, replace for your own)
 
@@ -48,6 +82,20 @@ API, an ERP feed) plug into the same paths without changing the core.
   - When the WMS confirms the shipment, BC posts the shipment (and the invoice, if
     configured) and records the carrier and tracking.
   - The Webstore is told when an order has shipped, so the shopper can see it.
+- **Build the integration layer once, for every integration.** One set of Azure
+  components carries every flow: a receiver that accepts an external message and
+  acknowledges it immediately, a durable queue, a stager that writes it into BC, a
+  subscriber on BC's outbound events, and a sender that calls the external system.
+  Adding a new integration is adding adapters to that plane, not new plumbing.
+- **Keep every external credential out of BC.** The Webstore and WMS keys live in the
+  plane's secret store, read by managed identity. BC holds none of them because BC
+  makes no outbound call.
+- **Make the whole path traceable end to end.** One correlation id, the Webstore order
+  number, joins the storefront, the plane, and BC, so a single trace answers "where is
+  order DG-00001" without reading three systems.
+- **Fail safely and visibly.** A message that cannot be delivered after its retries
+  lands in a dead-letter queue and raises an alert. Nothing is dropped, and nothing is
+  retried forever.
 
 ## Non-goals
 
@@ -58,8 +106,13 @@ API, an ERP feed) plug into the same paths without changing the core.
 - Returns, RMAs, multi-warehouse routing, back-order automation.
 - Multi-currency (NZD only).
 - AppSource submission.
+- A customer-facing portal, dashboard, or admin UI over the integration layer. Its
+  operational surface is the BC Integration Message list, Azure's own dead-letter
+  queue, and Application Insights.
+- Hosting or modifying the Webstore and the WMS. Both are fixed, already-built inputs.
+- Multi-region or active-active deployment of the plane.
 
-## What the extension does (business processes)
+## What the solution does (business processes)
 
 1. **Ingest an order.** The Webstore sends a placed order to the extension. The
    extension creates a standard Sales Order, mapping each catalogue SKU to a BC item
@@ -71,8 +124,20 @@ API, an ERP feed) plug into the same paths without changing the core.
    tracking, and shipped quantities. The extension posts the warehouse shipment (and
    the invoice if configured) and records the tracking. A re-sent confirmation does
    not post a second shipment.
-4. **Notify the Webstore.** Once the shipment is posted, the extension sets the
-   Webstore order to shipped, recording the BC order number.
+4. **Notify the Webstore.** Once the shipment is posted, the Webstore order is set to
+   shipped, recording the BC order number.
+
+### Which part owns which hop
+
+Every business process above crosses the boundary at least once, and the same split
+applies each time: the plane carries the message, BC decides what it means.
+
+| Hop | Integration layer | BC extension |
+|---|---|---|
+| Webstore order arrives | receives it, acknowledges the storefront, queues it, stages it into BC | dedups on the order number, creates the Sales Order |
+| Order released | subscribes to the release event, calls the WMS with the fulfilment request | raises the release event, stages the outbound request for correlation |
+| WMS confirms the shipment | receives the callback, acknowledges the WMS, queues it, stages it into BC | dedups on the shipment id, posts the shipment and records tracking |
+| Shipment posted | subscribes to the confirmation event, calls the storefront status endpoint | raises the confirmation event |
 
 ## Constraints and assumptions
 
@@ -92,6 +157,19 @@ API, an ERP feed) plug into the same paths without changing the core.
 - **Join key.** Items are matched between systems by SKU through a mapping maintained
   in BC. An unmapped SKU fails the item with a clear error rather than guessing.
 - **Secrets** live in secure storage, never in plain fields or in source.
+- **Azure target.** The integration layer runs in Azure, in one resource group per
+  environment, deployed from this repository as infrastructure as code. No resource is
+  created by hand in the portal, and no environment differs from another except by its
+  parameters.
+- **One plane, one owner per flow.** Each flow has exactly one receiver and one sender.
+  Two components never call the same external endpoint, so "who sent that" always has
+  one answer.
+- **At-least-once, everywhere.** Every queue and every external caller may deliver the
+  same message twice. The plane assumes it, and every receiving step is safe to run
+  again with the same input.
+- **Managed identity over keys** for anything in Azure that supports it: plane to Key
+  Vault, plane to Service Bus, plane to BC. Static keys are only for the two external
+  systems that offer nothing better.
 
 ## Integration endpoints and payloads: Webstore (already built)
 
@@ -299,6 +377,45 @@ A repeat with the same `Idempotency-Key` returns the existing fulfilment.
 extension post each shipment once. A short-shipped line posts a partial shipment and
 leaves the rest open.
 
+## What the integration layer must do
+
+These are the behaviours the plane is accountable for. They are requirements, not
+design: how they are met is settled in the technical design.
+
+1. **Accept and acknowledge fast.** A receiver answers the Webstore or the WMS within
+   its timeout, with a 2xx for accepted work, and does no BC work inline. An upstream
+   caller must never wait on BC posting.
+2. **Never lose an accepted message.** Once a receiver has acknowledged, the message is
+   on a durable queue. A crash between acknowledging and staging is not allowed to lose
+   it.
+3. **Stage into BC, do not post into BC.** The plane writes the message into the
+   extension's single inbound endpoint and stops there. It does not create Sales
+   Orders, post shipments, or run any BC business logic itself.
+4. **Carry the idempotency key, never strip it.** The Webstore order number and the WMS
+   shipment id travel with the message into BC, and the BC message id travels back out
+   on every call to the Webstore and the WMS, so both ends can dedup.
+5. **Dedup on its own side too.** A duplicate delivery to a receiver, or a redelivery
+   from a queue, produces no second call and no second staged message.
+6. **Carry the correlation id on every hop.** Read it from the inbound message, set it
+   on the queue message, set it on every outbound HTTP header, log it at every step.
+7. **Retry transient failures, and only transient ones.** Timeouts, 408, 429, and 5xx
+   are retried with backoff, by configured policy rather than a hand-written loop.
+   A 4xx is a permanent failure: it is not retried, it is dead-lettered and alerted.
+8. **Dead-letter what it cannot deliver,** with a defined maximum delivery count, so a
+   stuck message is visible and replayable rather than silently dropped.
+9. **Hold the credentials, and only in the secret store.** No key in source, in a
+   parameter file, or in a plain application setting.
+10. **Be observable.** Every step logs to Application Insights with the correlation id
+    and the message id, with no payload bodies and no personal data in telemetry.
+11. **Watch its own BC subscriptions.** BC business event subscriptions expire after
+    about three days and are removed silently on a bad response. A scheduled check
+    lists them and alerts when an expected one is missing, because nothing else will
+    catch it.
+12. **Drive the wait when an external system answers later.** If a call returns an
+    accepted-plus-status-url rather than a result, the plane polls or waits for the
+    callback and writes the outcome back against the same BC message. It never holds a
+    synchronous connection open waiting.
+
 ## Success measures
 
 - A Webstore order appears in BC as a Sales Order automatically, mapped to the right
@@ -310,3 +427,12 @@ leaves the rest open.
   duplicate order, document, shipment, status change, or notification.
 - A new integration can be added reusing the same inbound and outbound paths and the
   built-in idempotency, correlation, retry, and error handling.
+- BC holds no Webstore or WMS credential, and the extension contains no outbound HTTP
+  call, because the plane makes every one of them.
+- Taking the WMS offline does not stop a shopper ordering, does not stop BC posting
+  anything already confirmed, and loses nothing: the fulfilment requests queue, retry,
+  and dead-letter where they cannot be delivered.
+- One correlation id, searched once in Application Insights, returns every hop of an
+  order across the storefront, the plane, and BC.
+- Every Azure resource the solution uses can be recreated from this repository into an
+  empty resource group, with no portal step.

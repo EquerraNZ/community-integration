@@ -1,14 +1,20 @@
 {
   "folders": [
     {
-      {
-            "name": "Integration Foundation",
-            "path": "Integration Foundation"
-        },
-		{
-            "name": "Integration Foundation.Test",
-            "path": "Integration Foundation.Test"
-        }
+      "name": "Integration Foundation",
+      "path": "Integration Foundation"
+    },
+    {
+      "name": "Integration Foundation.Test",
+      "path": "Integration Foundation.Test"
+    },
+    {
+      "name": "integration-plane",
+      "path": "integration-plane"
+    },
+    {
+      "name": "infra",
+      "path": "infra"
     }
   ],
   "settings": {},

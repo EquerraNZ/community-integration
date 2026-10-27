@@ -1,0 +1,30 @@
+{
+  "version": "2.0",
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true,
+        "excludedTypes": "Request;Exception"
+      }
+    }
+  },
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[4.*, 5.0.0)"
+  },
+  "retry": {
+    "strategy": "fixedDelay",
+    "maxRetryCount": 0,
+    "delayInterval": "00:00:00"
+  },
+  "extensions": {
+    "serviceBus": {
+      "maxAutoLockRenewalDuration": "00:05:00",
+      "autoCompleteMessages": true,
+      "prefetchCount": 0,
+      "messageHandlerOptions": {
+        "maxConcurrentCalls": 8
+      }
+    }
+  }
+}

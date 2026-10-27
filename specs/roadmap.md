@@ -8,10 +8,15 @@
 
 ## Solution: Integration Foundation
 
-One reusable BC integration extension: a single inbound path and a single
-outbound path, with idempotency, correlation, retry, error handling, and manual
-resolution built in once and reused by every integration. The Webstore and WMS
-integrations are the first two modules on it, proving the pattern.
+One reusable BC integration extension and the Azure integration layer that carries
+every message to and from it: a single inbound path and a single outbound path, with
+idempotency, correlation, retry, error handling, and manual resolution built in once
+and reused by every integration. The Webstore and WMS integrations are the first two
+modules on it, proving the pattern.
+
+Each feature is marked **BC** or **Azure**. A business process is only demonstrable
+when both halves have landed: the extension can stage and post, but nothing reaches it
+and nothing leaves it until the plane exists.
 
 ## Pre-work (not a feature folder)
 
@@ -76,10 +81,49 @@ with `features/<NNN-slug>/` folders.
    nothing on the storefront. Status: `in-progress`
    (spec/plan/tasks + production AL complete; tests + CI pending).
 
-8. `008-subscription-health-monitor` The Job Queue monitor that lists external
-   event subscriptions periodically and alerts when an expected one is missing
-   (the platform removes a subscription silently with no built-in alert). Status:
-   `in-progress` (spec/plan/tasks + production AL complete; tests + CI pending).
+8. `008-subscription-health-monitor` **BC.** The Job Queue monitor that lists
+   external event subscriptions periodically and alerts when an expected one is
+   missing (the platform removes a subscription silently with no built-in alert).
+   Status: `in-progress` (spec/plan/tasks + production AL complete; tests + CI
+   pending).
+
+The BC half is now complete end to end, which is also where it stops being useful on
+its own: with no plane, nothing calls the API page and nothing consumes the events.
+The remaining features build the other half. They come after the BC features rather
+than interleaved with them because the BC side defines the contract (see
+`specs/contracts/integration-contract.md`) and the plane is written against it.
+
+9. `009-integration-plane-foundation` **Azure.** The shared plane, and the plane's
+   equivalent of `001`: the Bicep that provisions one environment (Service Bus with
+   the four flow queues and the parked queue, dead-lettering and duplicate
+   detection; Key Vault; storage;
+   Log Analytics and Application Insights; the Function App and its managed identity
+   with its role assignments; the dead-letter alerts), the shared helpers every flow
+   reuses (configuration, correlation, failure classification, the queue envelope,
+   telemetry, and the BC client), and the deployment workflow. No flow of its own.
+   Status: `in-progress` (spec/plan/tasks + infrastructure and shared code complete;
+   a real deployment and the proven BC identity path pending).
+
+10. `010-inbound-receivers-and-staging` **Azure.** Both inbound flows:
+    `receiveWebstoreOrder` and `receiveWmsShipment` authenticate their caller,
+    acknowledge immediately, and enqueue; `stageWebstoreOrder` and `stageWmsShipment`
+    post the inbound envelope to the BC API page. Completes business processes 1 and 3
+    end to end. Status: `in-progress` (spec/plan/tasks + plane code complete; a real
+    deployment pending).
+
+11. `011-outbound-event-dispatch` **Azure.** Both outbound flows:
+    `receiveBusinessEvent` answers BC's subscription validation and routes each event
+    onto its queue; `sendWmsFulfilment` reads the staged DTO back from BC and POSTs
+    the fulfilment request with its idempotency key; `sendWebstoreStatus` PATCHes the
+    storefront to `Despatched`. Completes business processes 2 and 4, and with them
+    the whole loop. Status: `in-progress` (spec/plan/tasks + plane code complete; a
+    real deployment pending).
+
+12. `012-plane-health-and-alerting` **Azure.** `checkSubscriptionHealth` on a timer,
+    re-registering a missing BC subscription, and the alert rules on dead-letter depth
+    and health-check drift. The counterpart to `008`: BC watches its own
+    subscriptions, and the plane watches whether BC can still reach it. Status:
+    `in-progress` (spec/plan/tasks + plane code complete; a real deployment pending).
 
 ## Parked / later
 
@@ -94,6 +138,12 @@ this build (see the brief non-goals).
 - A carrier API integration.
 - Multi-warehouse routing.
 - Integration Message retention / archive policy (open technical question 4).
+- Replaying a dead-lettered message from the BC resolution page rather than from the
+  Azure portal (open technical question 9).
+- A second environment and promotion between environments. The plane is built for it
+  (one resource group, one parameter file per environment) but only `dev` exists.
+- Splitting the plane into a Function App per flow. Not needed at this volume, and the
+  per-flow queues already stop one stuck external system blocking another.
 
 ## Done
 

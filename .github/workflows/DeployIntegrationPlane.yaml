@@ -1,0 +1,144 @@
+name: Deploy Integration Plane
+
+# The Azure half of the solution. The AL half is built and deployed by the AL-Go
+# workflows; this one owns everything under infra/ and integration-plane/.
+#
+# It authenticates with workload identity federation, so nothing secret is stored
+# in this repository: AZURE_CLIENT_ID, AZURE_TENANT_ID and AZURE_SUBSCRIPTION_ID
+# are repository variables, and none of them is a credential on its own.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'integration-plane/**'
+      - '.github/workflows/DeployIntegrationPlane.yaml'
+  pull_request:
+    paths:
+      - 'infra/**'
+      - 'integration-plane/**'
+      - '.github/workflows/DeployIntegrationPlane.yaml'
+  workflow_dispatch:
+    inputs:
+      environmentName:
+        description: Environment to deploy
+        type: choice
+        options: [dev]
+        default: dev
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  NODE_VERSION: '20'
+  RESOURCE_GROUP: rg-intplane-dev-aue
+  PARAMETER_FILE: infra/main.dev.bicepparam
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-plane
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: integration-plane/package-lock.json
+
+      - run: npm ci
+
+      - name: Type check and compile
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Package the function app
+        run: |
+          mkdir -p ../artifact
+          cp package.json package-lock.json host.json ../artifact/
+          cp -r dist ../artifact/dist
+          cd ../artifact && npm ci --omit=dev && zip -r ../integration-plane.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: integration-plane
+          path: integration-plane.zip
+          retention-days: 7
+
+  validate:
+    name: What-if the infrastructure
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # On a pull request this is the whole job: the reviewer sees what would
+      # change before anyone agrees to it.
+      - name: What-if
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az deployment group what-if \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --template-file infra/main.bicep \
+              --parameters ${{ env.PARAMETER_FILE }}
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [build, validate]
+    if: github.event_name != 'pull_request'
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: integration-plane
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure
+        id: infra
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --template-file infra/main.bicep \
+              --parameters ${{ env.PARAMETER_FILE }} \
+              --query properties.outputs \
+              --output json > outputs.json
+            echo "functionAppName=$(jq -r .functionAppName.value outputs.json)" >> "$GITHUB_OUTPUT"
+            echo "principalId=$(jq -r .functionAppPrincipalId.value outputs.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the function app
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az functionapp deployment source config-zip \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --name ${{ steps.infra.outputs.functionAppName }} \
+              --src integration-plane.zip
+
+      - name: Remind about the Business Central registration
+        run: |
+          echo "::notice::Function App principal ${{ steps.infra.outputs.principalId }} must be registered in Business Central as an Entra application with the Integration Foundation permission set. Nothing will reach BC until it is. See infra/README.md."

@@ -171,3 +171,97 @@ accepts").
 | Inbound WmsShipmentConfirmation | `(shipmentId, WmsShipmentConfirmation)` | `reference` (= `orderNo`) |
 | Outbound fulfilment request | `reference` (= `orderNo`), set by integration layer | `orderNo` |
 | Outbound despatch notify | storefront PATCH is idempotent (`transitioned:false` on repeat) | `orderNo` |
+
+## Plane-side contract: what the integration layer exposes and sends
+
+The sections above pin the BC side. This section pins the plane side, so both halves
+of every hop are in one file. The plane is specified in `tech-design.md` under "Azure
+integration layer" and built under `infra/` and `integration-plane/`.
+
+### Endpoints the plane exposes
+
+| Endpoint | Caller | Auth | Answers |
+|---|---|---|---|
+| `POST /api/webstore/orders` | the storefront, forwarding a placed order | `x-api-key` = `WEBSHOP_INGEST_KEY` from Key Vault | `202` once queued, `401` on a bad key, `400` with no `orderNo` |
+| `POST /api/wms/shipments` | the WMS, confirming a shipment | `x-api-key` = the WMS callback key from Key Vault | `202` once queued, `401` on a bad key, `400` with no `shipmentId` |
+| `POST /api/bc/events` | Business Central, delivering an external business event | the subscription's own validation handshake, then the registered endpoint token | `200` once routed, `200` echoing the validation token on a handshake |
+
+Every receiver answers before doing any work beyond validation and enqueueing. None of
+them calls BC, the WMS, or the storefront while the caller waits. A `202` means the
+message is on a durable queue, nothing more, and in particular it does not mean BC has
+accepted it: that is what the Integration Message list is for.
+
+### The queue envelope
+
+Between a receiver and its delivery function, the plane carries this. It is internal,
+it is not a public contract, and it exists so that no delivery function has to call
+back to the source for anything:
+
+```json
+{
+  "flow": "webstore-order",
+  "businessKey": "DG-00001",
+  "correlationId": "DG-00001",
+  "source": "webstore",
+  "receivedAt": "2026-06-11T09:14:02.000Z",
+  "payload": { "...": "the original body, unaltered" }
+}
+```
+
+The Service Bus `MessageId` is `<flow>:<businessKey>`, so the broker discards an exact
+redelivery inside the duplicate detection window. `correlationId` also travels as a
+Service Bus application property, so it is readable without deserialising the body.
+
+### What the plane sends to BC
+
+**Staging an inbound message.** The inbound envelope from "Inbound envelope" above,
+POSTed to the API page with `Idempotency-Key: <businessKey>`, `x-correlation-id`, and
+a bearer token for the Function App's managed identity. A `201` is success. A `409`,
+or a `200` returning an existing row, is also success: BC deduplicated, which is what
+it was asked to do, and the plane records the returned `Message ID` and stops.
+
+**Reading a staged outbound message.** `OnSalesOrderReleased_v1` carries only
+`reference`, `bcOrderNo`, and `correlationId`, because an `[ExternalBusinessEvent]`
+argument is capped at 250 characters. The fulfilment DTO lives on the staged outbound
+Integration Message. `sendWmsFulfilment` reads it back by `externalReference` before
+calling the WMS. This is the only read the plane makes against BC, and it carries no
+business logic: the DTO is taken as it stands.
+
+**Recording the result.** After a successful WMS call the plane writes the `wmsRef`
+onto the same outbound message, so the request and the later confirmation are joined
+in BC by more than the correlation id alone.
+
+### What the plane sends outward
+
+| Call | Headers the plane must set | Source of each value |
+|---|---|---|
+| `POST {WMS_BASE_URL}/api/v2/fulfilments` | `Authorization: ApiKey {WMS_API_KEY}`, `Idempotency-Key: {reference}`, `x-correlation-id: {correlationId}` | key from Key Vault; reference and correlation id from the event |
+| `PATCH {WEBSTORE}/api/orders/{orderNo}/status` | `x-api-key: {WEBSITE_STATUS_KEY}`, `x-correlation-id: {correlationId}` | key from Key Vault; order number and correlation id from the event |
+
+Bodies are exactly the shapes in `brief.md`: the fulfilment request as the WMS accepts
+it, and `{ "status": "Despatched", "bcOrderNo": ..., "despatchedAt": ... }` as the
+storefront accepts it. The plane adds no field and drops none.
+
+### Failure classification, which is part of the contract
+
+The same split applies on every hop, in both directions, and it is a contract because
+the two sides have to agree on what a retry means:
+
+| Response | Plane behaviour |
+|---|---|
+| `2xx` | Success. Complete the queue message. |
+| `409` from BC on a staging POST | Success. The message already existed; record it and complete. |
+| `408`, `429`, `5xx`, timeout, connection failure | Transient. Rethrow, so Service Bus redelivers with backoff until the maximum delivery count. |
+| any other `4xx`, or a payload that fails validation | Permanent. Park with a reason and complete. Never retried. |
+
+Retrying a `4xx` forever is the failure that looks like a working integration while
+nothing moves, so it is forbidden rather than discouraged.
+
+"Park" rather than "dead-letter" is a deliberate word. The Node worker does not expose
+Service Bus message settlement, so a function cannot dead-letter the message it is
+holding; it can only complete it or abandon it, and abandoning means retry. A
+permanent failure is therefore forwarded to one shared `parked` queue with its reason
+and completed. A message that dead-letters by exhausting its delivery count still goes
+to its queue's own dead-letter queue. Both are watched by the same alerts and both
+keep the original body, so to operations they are one surface: messages that stopped,
+with the reason attached.

@@ -11,6 +11,10 @@ A community-maintained Business Central integration repository built on
 set of AI agents and skills for AL development, and driven by Spec-Driven
 Development.
 
+The solution has two halves and this repository holds both: the BC extension, and the
+Azure integration layer that carries every message across the boundary. Neither is
+useful alone, so a change to one usually needs a look at the other.
+
 ## How we build here: Spec-Driven Development
 
 **The spec is the brain, the agent is the muscle.** You do not write production
@@ -55,8 +59,17 @@ review the constitution for completeness and consistency before any feature work
 
 ## Layout
 
-- `specs/`: the constitution and per-feature specs (the source of truth for what to build).
-- `.AL-Go/`, `.github/workflows/`: AL-Go for GitHub build, test, and release pipelines.
+- `specs/`: the constitution and per-feature specs (the source of truth for what to
+  build, on both sides of the boundary).
+- `Integration Foundation/`, `Integration Foundation.Test/`: the Business Central
+  extension and its tests.
+- `integration-plane/`: the Azure integration layer. The extension makes no outbound
+  HTTP call by design, so this is what terminates every external connection, holds
+  every external credential, and carries every message to and from BC.
+- `infra/`: the Bicep that provisions the plane, one resource group per environment.
+  Nothing is created in the portal.
+- `.AL-Go/`, `.github/workflows/`: AL-Go for GitHub build, test, and release
+  pipelines, plus `DeployIntegrationPlane.yaml` for the Azure half.
 - `.claude/agents/`: focused reviewer and verifier subagents for AL code.
 - `.claude/skills/`: invocable review skills, including the SDD review gates above.
   Most are thin pointers: the authoritative content lives in BCQuality
