@@ -24,14 +24,14 @@ The split is the point, not an implementation detail. It is what keeps external
 credentials out of BC, keeps BC posting independent of whether a third party is up,
 and lets a vendor change their API without a BC release.
 
-## What the extension is
+## What the extension is, in more detail
 
-A reusable Business Central integration extension. The goal is to build one
-integration extension that can handle any integration, current or future, through a
-single shared mechanism, so that connecting the next external system is a matter of
-adding a small module rather than re-architecting or re-building the plumbing. The
-extension provides one inbound path and one outbound path, with idempotency,
-correlation, retry, and error handling built in once and reused by every integration.
+The Business Central half, and half of the goal above. One integration extension that
+can handle any integration, current or future, through a single shared mechanism, so
+that connecting the next external system is a matter of adding a small module rather
+than re-architecting or re-building the plumbing. The extension provides one inbound
+path and one outbound path, with idempotency, correlation, retry, and error handling
+built in once and reused by every integration.
 
 BC is the system of record for orders, fulfilment, and invoicing. The first two
 integrations built on the extension, and the ones this brief specifies, connect BC to
@@ -41,10 +41,13 @@ the WMS shipment confirmation posts the shipment in BC; and the Webstore is told
 the order has shipped. Future integrations (a finance portal, a marketplace, a carrier
 API, an ERP feed) plug into the same paths without changing the core.
 
-## What the integration layer is
+None of those hops leaves BC through a call the extension makes itself. The extension
+receives, decides, and posts; every message that crosses the boundary in either
+direction is carried by the other half.
 
-The Azure side of the same solution, and the only thing that talks to the outside
-world. It terminates the Webstore and WMS connections, stages every inbound message
+## What the integration layer is, in more detail
+
+The Azure half, and the only thing that talks to the outside world. It terminates the Webstore and WMS connections, stages every inbound message
 into BC through the extension's single inbound endpoint, subscribes to the extension's
 outbound business events, and makes the resulting calls to the Webstore and the WMS.
 
@@ -114,18 +117,21 @@ keeps the credentials. Every business decision belongs in BC.
 
 ## What the solution does (business processes)
 
-1. **Ingest an order.** The Webstore sends a placed order to the extension. The
+1. **Ingest an order.** The Webstore sends a placed order to the integration layer,
+   which accepts it, answers the storefront immediately, and stages it into BC. The
    extension creates a standard Sales Order, mapping each catalogue SKU to a BC item
    and using a dedicated Webstore customer. A duplicate of the same order does not
    create a second Sales Order.
 2. **Release and request fulfilment.** A staff member reviews and releases the Sales
-   Order. Releasing it makes the extension ask the WMS to fulfil the order.
+   Order. Releasing it makes the extension raise a fulfilment request, and the
+   integration layer carries it to the WMS.
 3. **Confirm the shipment.** The WMS confirms the shipment with the carrier,
-   tracking, and shipped quantities. The extension posts the warehouse shipment (and
-   the invoice if configured) and records the tracking. A re-sent confirmation does
-   not post a second shipment.
-4. **Notify the Webstore.** Once the shipment is posted, the Webstore order is set to
-   shipped, recording the BC order number.
+   tracking, and shipped quantities to the integration layer, which stages it into
+   BC. The extension posts the warehouse shipment (and the invoice if configured) and
+   records the tracking. A re-sent confirmation does not post a second shipment.
+4. **Notify the Webstore.** Once the shipment is posted, the extension says so, and
+   the integration layer sets the Webstore order to shipped, recording the BC order
+   number.
 
 ### Which part owns which hop
 
@@ -376,6 +382,53 @@ A repeat with the same `Idempotency-Key` returns the existing fulfilment.
 `reference` is the storefront order number (the correlation id). `shipmentId` lets the
 extension post each shipment once. A short-shipped line posts a partial shipment and
 leaves the rest open.
+
+## Integration endpoints: the integration layer (to build)
+
+The two sections above are fixed inputs. This one is a deliverable. It is in the brief
+rather than left to the technical design because the Webstore and the WMS both have to
+be pointed at these addresses, which makes them a commitment to somebody else's system
+rather than an internal choice we can revisit quietly.
+
+### Endpoints the layer exposes
+
+| Method + URL | Caller | Auth | Answers |
+|---|---|---|---|
+| `POST /api/webstore/orders` | the Webstore, forwarding a placed order | `x-api-key`, the ingest key | `202` once queued, `401` on a bad key, `400` with no `orderNo` |
+| `POST /api/wms/shipments` | the WMS, confirming a shipment | `x-api-key`, the WMS callback key | `202` once queued, `401` on a bad key, `400` with no `shipmentId` |
+| `POST /api/bc/events` | Business Central, delivering an outbound event | the event subscription's own registration handshake | `200` once routed |
+
+A `202` means the message is on a durable queue, and nothing more. It does not mean BC
+has accepted it, and no caller is ever held waiting while BC posts.
+
+### Calls the layer makes
+
+| Call | To | Carries |
+|---|---|---|
+| `POST {WMS_BASE_URL}/api/v2/fulfilments` | the WMS | the WMS API key, the idempotency key, the correlation id |
+| `PATCH {WEBSTORE}/api/orders/{orderNo}/status` | the Webstore | the Webstore status key, the correlation id |
+| stage an inbound message | BC's own inbound endpoint | the layer's own managed identity, the idempotency key |
+
+Four credentials, and the layer holds all four: the two keys its callers present to it,
+and the two keys it presents to the Webstore and the WMS. Each direction has its own
+key, so rotating one does not take the other down. BC holds none of them.
+
+### What the layer is made of
+
+Deliverables, not design. How they are arranged, and which Azure services carry them,
+is the technical design's business.
+
+- A receiver for each inbound caller, and a sender for each outbound call.
+- A durable queue per flow, so one slow or stuck external system cannot block another,
+  and so nothing accepted is lost before it reaches BC.
+- A secret store holding the four credentials, reached by managed identity rather than
+  by a key of its own.
+- Telemetry on every step, keyed by the correlation id, with no payload bodies and no
+  personal data in it.
+- A scheduled check that BC can still reach the layer, because the subscription that
+  carries the outbound events expires and is removed silently.
+- Infrastructure as code for all of the above, so an environment can be rebuilt from
+  this repository with no manual step.
 
 ## What the integration layer must do
 
