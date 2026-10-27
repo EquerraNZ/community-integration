@@ -16,6 +16,8 @@
 - [ ] 4. Add telemetry on the protected operations named in the spec
 - [ ] 5. Write AL tests for each acceptance criterion
 - [ ] 6. Build, then run the mandatory verifier set and a BCQuality review; resolve findings
+- [ ] 6a. If the feature touches the Azure integration layer, run
+      `azure-integration-validator` and resolve its findings too
 - [ ] 7. Update feature docs and tick the roadmap item
 
 ## Done when

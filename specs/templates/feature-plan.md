@@ -25,6 +25,19 @@ state what is custom and why.
 
 All IDs must sit inside the assigned range from `specs/tech-design.md`.
 
+Leave the table empty with "none" if the feature is Azure-only.
+
+## Azure components to add or change
+
+| Component | Kind | Where | New/Change | Purpose |
+|---|---|---|---|---|
+| <name> | function/queue/resource/policy | integration-plane/... or infra/... | new | ... |
+
+Name the plane requirements from `specs/brief.md` this feature satisfies, and the
+`az-` rules from the Azure integration review it has to clear. State explicitly where
+the idempotency key, the correlation id, and the retry policy come from. Leave the
+table empty with "none" if the feature is BC-only.
+
 ## Data model
 
 New tables, key fields, keys, and relations to standard BC tables.
@@ -32,6 +45,10 @@ New tables, key fields, keys, and relations to standard BC tables.
 ## Integration points
 
 External calls, events subscribed/published, APIs. Note idempotency and auth.
+
+For anything crossing the boundary, trace the whole hop: which component receives,
+what acknowledges the caller, what queue it lands on, what stages it into BC, and what
+happens on a duplicate, a transient failure, and a permanent one.
 
 ## Cross-cutting
 
