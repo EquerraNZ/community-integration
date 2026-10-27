@@ -1,0 +1,19 @@
+{
+  "comment": "Best practice: the outbound hop copies the Idempotency-Key it received from BC straight through to the external system. The plane is transparent to the key; a replay of the same BC message reuses the same value and the payment service charges once.",
+  "definition": {
+    "actions": {
+      "Call_Payment_Service": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://pay.contoso.com/api/charges",
+          "headers": {
+            "Idempotency-Key": "@triggerOutputs()?['headers']?['Idempotency-Key']",
+            "Correlation-Id": "@triggerOutputs()?['headers']?['Correlation-Id']"
+          },
+          "body": "@triggerBody()"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "comment": "Best practice: retry only the transient status classes (408, 429, 5xx); send everything else straight to the dead-letter path. The permanent 4xx branch alerts instead of looping.",
+  "definition": {
+    "actions": {
+      "Call_External": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://partner.contoso.com/api/orders",
+          "body": "@triggerBody()",
+          "retryPolicy": { "type": "none" }
+        }
+      },
+      "Decide_On_Status": {
+        "type": "Switch",
+        "runAfter": { "Call_External": ["Succeeded", "Failed"] },
+        "expression": "@div(outputs('Call_External')?['statusCode'], 100)",
+        "cases": {
+          "transient_5xx": {
+            "case": 5,
+            "actions": { "Reenqueue_For_Retry": { "type": "ServiceBus", "inputs": { "entityName": "retry", "message": { "contentData": "@triggerBody()" } } } }
+          },
+          "throttled_or_timeout_4xx": {
+            "case": 4,
+            "actions": {
+              "Permanent_Unless_Throttled": {
+                "type": "If",
+                "expression": "@or(equals(outputs('Call_External')?['statusCode'], 408), equals(outputs('Call_External')?['statusCode'], 429))",
+                "actions": { "Reenqueue_Throttled": { "type": "ServiceBus", "inputs": { "entityName": "retry", "message": { "contentData": "@triggerBody()" } } } },
+                "else": { "actions": { "Dead_Letter_Permanent": { "type": "ServiceBus", "inputs": { "entityName": "poison", "message": { "contentData": "@triggerBody()" } } } } }
+              }
+            }
+          }
+        },
+        "default": { "actions": {} }
+      }
+    }
+  }
+}

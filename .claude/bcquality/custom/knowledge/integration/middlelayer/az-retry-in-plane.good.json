@@ -1,0 +1,23 @@
+{
+  "comment": "Best practice: an explicit exponential retry policy on the outbound action. Bounded count, jittered backoff, tuned to the dependency's recovery time. On exhaustion the run fails and the message dead-letters; the platform owns the retry, not a hand-written loop.",
+  "definition": {
+    "actions": {
+      "Call_WMS": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://wms.contoso.com/api/shipments",
+          "headers": { "Idempotency-Key": "@triggerOutputs()?['headers']?['Idempotency-Key']" },
+          "body": "@triggerBody()",
+          "retryPolicy": {
+            "type": "exponential",
+            "count": 5,
+            "interval": "PT10S",
+            "maximumInterval": "PT5M",
+            "minimumInterval": "PT10S"
+          }
+        }
+      }
+    }
+  }
+}

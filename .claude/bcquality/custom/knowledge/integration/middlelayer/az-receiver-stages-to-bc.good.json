@@ -1,0 +1,39 @@
+{
+  "comment": "Best practice: the receiver validates, stages one Integration Message row in BC, and returns the id. No posting, no second callout, no wait loop. Real work happens later in a BC Job Queue processor.",
+  "definition": {
+    "triggers": {
+      "storefront_order_webhook": {
+        "type": "Request",
+        "kind": "Http"
+      }
+    },
+    "actions": {
+      "Stage_to_BC": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://@{parameters('bcApiHost')}/api/contoso/integration/v1.0/companies(@{parameters('companyId')})/integrationMessages",
+          "authentication": { "type": "ManagedServiceIdentity" },
+          "headers": {
+            "Content-Type": "application/json",
+            "Idempotency-Key": "@triggerBody()?['id']",
+            "Correlation-Id": "@triggerBody()?['correlationId']"
+          },
+          "body": {
+            "type": "storefrontOrder",
+            "externalReference": "@triggerBody()?['id']",
+            "requestContent": "@triggerBody()"
+          }
+        }
+      },
+      "Acknowledge": {
+        "type": "Response",
+        "runAfter": { "Stage_to_BC": ["Succeeded"] },
+        "inputs": {
+          "statusCode": 202,
+          "body": { "stagedMessageId": "@body('Stage_to_BC')?['id']" }
+        }
+      }
+    }
+  }
+}

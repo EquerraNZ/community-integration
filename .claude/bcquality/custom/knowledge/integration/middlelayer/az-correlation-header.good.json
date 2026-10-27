@@ -1,0 +1,31 @@
+{
+  "comment": "Best practice: the correlation id is read from the inbound header and propagated onto both the outbound HTTP call and the Service Bus message property. The W3C traceparent is forwarded too, so Application Insights stitches the trace across BC, the plane, and the external system.",
+  "definition": {
+    "actions": {
+      "Call_External": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://partner.contoso.com/api/orders",
+          "headers": {
+            "Correlation-Id": "@triggerOutputs()?['headers']?['Correlation-Id']",
+            "traceparent": "@triggerOutputs()?['headers']?['traceparent']",
+            "Idempotency-Key": "@triggerOutputs()?['headers']?['Idempotency-Key']"
+          },
+          "body": "@triggerBody()"
+        }
+      },
+      "Emit_To_Bus": {
+        "type": "ServiceBus",
+        "runAfter": { "Call_External": ["Succeeded"] },
+        "inputs": {
+          "entityName": "order-accepted",
+          "message": {
+            "contentData": "@body('Call_External')",
+            "correlationId": "@triggerOutputs()?['headers']?['Correlation-Id']"
+          }
+        }
+      }
+    }
+  }
+}
