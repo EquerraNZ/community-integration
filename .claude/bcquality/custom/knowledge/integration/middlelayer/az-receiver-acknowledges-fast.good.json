@@ -1,0 +1,31 @@
+{
+  "comment": "Best practice: respond 202 immediately after staging. The slow fan-out work is dropped on a Service Bus queue and runs off the request thread, so the caller never waits on it.",
+  "definition": {
+    "triggers": { "partner_webhook": { "type": "Request", "kind": "Http" } },
+    "actions": {
+      "Stage_to_BC": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://@{parameters('bcApiHost')}/api/contoso/integration/v1.0/integrationMessages",
+          "authentication": { "type": "ManagedServiceIdentity" },
+          "headers": { "Idempotency-Key": "@triggerBody()?['id']" },
+          "body": { "type": "partnerEvent", "requestContent": "@triggerBody()" }
+        }
+      },
+      "Acknowledge_Fast": {
+        "type": "Response",
+        "runAfter": { "Stage_to_BC": ["Succeeded"] },
+        "inputs": { "statusCode": 202, "body": { "accepted": true } }
+      },
+      "Queue_Enrichment_After_Response": {
+        "type": "ServiceBus",
+        "runAfter": { "Acknowledge_Fast": ["Succeeded"] },
+        "inputs": {
+          "entityName": "enrichment",
+          "message": { "contentData": "@triggerBody()" }
+        }
+      }
+    }
+  }
+}

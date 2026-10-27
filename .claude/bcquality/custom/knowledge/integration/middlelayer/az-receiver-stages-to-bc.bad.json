@@ -1,0 +1,30 @@
+{
+  "comment": "Anti-pattern: the receiver posts the order in BC inline and waits for the result before answering the storefront. The storefront's request is now coupled to a BC posting transaction, so a slow post times out the webhook and the storefront retries into a duplicate.",
+  "definition": {
+    "triggers": {
+      "storefront_order_webhook": {
+        "type": "Request",
+        "kind": "Http"
+      }
+    },
+    "actions": {
+      "Post_Sales_Order_In_BC": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://@{parameters('bcApiHost')}/api/contoso/sales/v1.0/companies(@{parameters('companyId')})/salesOrders/Microsoft.NAV.post",
+          "authentication": { "type": "ManagedServiceIdentity" },
+          "body": "@triggerBody()"
+        }
+      },
+      "Wait_Then_Answer": {
+        "type": "Response",
+        "runAfter": { "Post_Sales_Order_In_BC": ["Succeeded"] },
+        "inputs": {
+          "statusCode": 200,
+          "body": "@body('Post_Sales_Order_In_BC')"
+        }
+      }
+    }
+  }
+}

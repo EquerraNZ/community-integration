@@ -1,0 +1,27 @@
+{
+  "comment": "Anti-pattern: a hand-written do-until loop with a fixed delay and a counter reimplements retry badly. No jitter (so every instance retries in lockstep and hammers the dependency), state is lost if the run restarts, and there is no dead-letter when the attempts run out.",
+  "definition": {
+    "actions": {
+      "Retry_Loop": {
+        "type": "Until",
+        "expression": "@or(equals(variables('ok'), true), greaterOrEquals(variables('attempt'), 5))",
+        "limit": { "count": 5, "timeout": "PT1H" },
+        "actions": {
+          "Call_WMS": {
+            "type": "Http",
+            "inputs": {
+              "method": "POST",
+              "uri": "https://wms.contoso.com/api/shipments",
+              "body": "@triggerBody()"
+            }
+          },
+          "Wait": { "type": "Wait", "inputs": { "interval": { "count": 30, "unit": "Second" } } },
+          "Bump_Attempt": {
+            "type": "IncrementVariable",
+            "inputs": { "name": "attempt", "value": 1 }
+          }
+        }
+      }
+    }
+  }
+}

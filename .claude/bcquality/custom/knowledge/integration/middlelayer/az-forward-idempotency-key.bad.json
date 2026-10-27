@@ -1,0 +1,18 @@
+{
+  "comment": "Anti-pattern: the hop mints a fresh key from the workflow run id and ignores the Idempotency-Key BC sent. Every retry of the same BC message is now a brand-new request to the payment service, so an uncertain failure replays into a second charge.",
+  "definition": {
+    "actions": {
+      "Call_Payment_Service": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://pay.contoso.com/api/charges",
+          "headers": {
+            "Idempotency-Key": "@workflow().run.name"
+          },
+          "body": "@triggerBody()"
+        }
+      }
+    }
+  }
+}

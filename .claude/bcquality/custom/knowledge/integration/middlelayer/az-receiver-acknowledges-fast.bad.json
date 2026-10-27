@@ -1,0 +1,30 @@
+{
+  "comment": "Anti-pattern: a synchronous enrichment call to an external API runs before the response, so the partner webhook waits on a system neither it nor BC controls. When enrichment is slow the partner times out and redelivers.",
+  "definition": {
+    "triggers": { "partner_webhook": { "type": "Request", "kind": "Http" } },
+    "actions": {
+      "Stage_to_BC": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://@{parameters('bcApiHost')}/api/contoso/integration/v1.0/integrationMessages",
+          "authentication": { "type": "ManagedServiceIdentity" },
+          "body": { "type": "partnerEvent", "requestContent": "@triggerBody()" }
+        }
+      },
+      "Enrich_From_External_API": {
+        "type": "Http",
+        "runAfter": { "Stage_to_BC": ["Succeeded"] },
+        "inputs": {
+          "method": "GET",
+          "uri": "https://enrich.contoso.com/customers/@{triggerBody()?['customerId']}"
+        }
+      },
+      "Acknowledge_Too_Late": {
+        "type": "Response",
+        "runAfter": { "Enrich_From_External_API": ["Succeeded"] },
+        "inputs": { "statusCode": 200, "body": "@body('Enrich_From_External_API')" }
+      }
+    }
+  }
+}
