@@ -34,8 +34,9 @@ plane's equivalent of the core: no flow of its own, but every flow depends on it
   - a Service Bus namespace with the four queues (`inbound-webstore-order`,
     `inbound-wms-shipment`, `outbound-wms-fulfilment`, `outbound-webstore-status`),
     each with dead-lettering on, a maximum delivery count, and duplicate detection;
-  - a Key Vault holding the external credentials, with no secret value in the
-    template or its parameters;
+  - a Key Vault holding the four external credentials (`webstore-ingest-key`,
+    `webstore-status-key`, `wms-api-key`, `wms-callback-key`), with no secret value
+    in the template or its parameters;
   - a storage account for the Function App host;
   - a Log Analytics workspace and an Application Insights resource;
   - a Function App on a Consumption plan with a system-assigned managed identity, and
@@ -71,7 +72,7 @@ plane's equivalent of the core: no flow of its own, but every flow depends on it
 This feature has no end-user flow. Its flow is the developer's and the pipeline's:
 
 1. An operator creates the resource group and the federated credential once, and
-   writes the three external secrets into Key Vault.
+   writes the four external secrets into Key Vault.
 2. A push to the default branch runs the workflow, which deploys the Bicep and
    publishes the Function App.
 3. An integration developer adds a function for a new flow. The queue, the identity,

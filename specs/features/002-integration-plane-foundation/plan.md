@@ -41,7 +41,7 @@ one-off per environment.
 |---|---|
 | Service Bus (Standard) | Four queues, one per flow. Dead-lettering on, maximum delivery count 5, duplicate detection on a 1 hour window, lock duration 5 minutes. No custom queueing, no custom retry. |
 | Azure Functions (Node 20, TypeScript, v4 programming model) | Every receiver, stager, sender, and timer. HTTP and Service Bus triggers, so no polling code. |
-| Key Vault | The three external secrets. Referenced from app settings as Key Vault references, so the Function App never calls the vault in code. |
+| Key Vault | The four external secrets. Referenced from app settings as Key Vault references, so the Function App never calls the vault in code. |
 | Managed identity (system-assigned) | The Function App's identity to Key Vault, Service Bus, and BC. No connection string, no client secret. |
 | Application Insights and Log Analytics | Traces and failures, with the correlation id as a custom dimension. |
 | Azure Monitor metric alerts | Dead-letter message count greater than zero on any queue. |
@@ -101,8 +101,11 @@ Authentication, in both directions:
 
 ## Cross-cutting
 
-- **Secrets:** three Key Vault secrets (`webstore-ingest-key`, `webstore-status-key`,
-  `wms-api-key`), seeded out of band. The template creates the vault, not the values.
+- **Secrets:** four Key Vault secrets (`webstore-ingest-key`, `webstore-status-key`,
+  `wms-api-key`, `wms-callback-key`), seeded out of band. The template creates the
+  vault, not the values. The callback key is the one the WMS must present to the
+  plane; the API key is the one the plane presents to the WMS. Two directions, two
+  keys, so rotating one does not take the other down.
 - **Telemetry:** every helper logs through `telemetry.ts` so the dimension names are
   identical everywhere. A log call that takes a payload body is a review failure.
 - **Permissions:** three role assignments in the template, each scoped to the one
