@@ -1,0 +1,27 @@
+{
+  "comment": "Anti-pattern: the outbound call carries no correlation id and the Service Bus emit mints a fresh guid. The trace restarts at this hop, so when the partner later reports a failure there is no single id that ties it back to the BC message that caused it.",
+  "definition": {
+    "actions": {
+      "Call_External": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://partner.contoso.com/api/orders",
+          "headers": { "Content-Type": "application/json" },
+          "body": "@triggerBody()"
+        }
+      },
+      "Emit_To_Bus": {
+        "type": "ServiceBus",
+        "runAfter": { "Call_External": ["Succeeded"] },
+        "inputs": {
+          "entityName": "order-accepted",
+          "message": {
+            "contentData": "@body('Call_External')",
+            "correlationId": "@guid()"
+          }
+        }
+      }
+    }
+  }
+}

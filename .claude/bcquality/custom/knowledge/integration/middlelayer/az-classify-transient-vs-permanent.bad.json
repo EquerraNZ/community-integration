@@ -1,0 +1,20 @@
+{
+  "comment": "Anti-pattern: a blanket exponential retry with no status-class gate. A 400 (invalid data) and a 422 (rejected contract) are retried five times exactly like a timeout, wasting the whole budget on a request that can never succeed, and the integration owner hears about the contract break only after every attempt is spent.",
+  "definition": {
+    "actions": {
+      "Call_External": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "https://partner.contoso.com/api/orders",
+          "body": "@triggerBody()",
+          "retryPolicy": {
+            "type": "exponential",
+            "count": 5,
+            "interval": "PT15S"
+          }
+        }
+      }
+    }
+  }
+}
