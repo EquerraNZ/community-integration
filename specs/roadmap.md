@@ -5,6 +5,10 @@
 >
 > Status legend: `todo` | `spec` (spec written) | `planned` (plan + tasks ready)
 > | `in-progress` | `done` | `parked`.
+>
+> A feature delivers BC objects, Azure integration layer components, or both. Mark
+> which in the feature line, so the order of delivery shows where each half of a flow
+> lands and neither half is forgotten.
 
 ## Solution: <Solution Name>
 
